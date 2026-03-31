@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-lake"
+version = "0.1.0"
+description = "Local-first historical market data lakehouse"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "duckdb>=1.0.0","pandas>=2.2.0","pyarrow>=15.0.0",
+  "PyYAML>=6.0.1","yfinance>=0.2.40","python-dateutil>=2.9.0",
+  "tenacity>=8.2.3","requests>=2.31.0","python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0","ruff>=0.5.0","mypy>=1.10.0"]
+dbt = ["dbt-duckdb>=1.8.0"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

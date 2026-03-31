@@ -1,0 +1,150 @@
+version: 2
+
+models:
+  - name: stg_yahoo_daily_bars
+    description: Yahoo Finance daily OHLCV bars from canonical parquet (source=yahoo)
+    columns:
+      - name: symbol
+        description: Canonical ticker symbol (uppercase)
+        tests: [not_null]
+      - name: date
+        description: Trading date
+        tests: [not_null]
+      - name: close
+        description: Unadjusted closing price
+        tests: [not_null]
+      - name: adj_close
+        description: Dividend/split adjusted closing price
+        tests: [not_null]
+
+  - name: stg_stooq_daily_bars
+    description: Stooq daily OHLCV bars from canonical parquet (source=stooq)
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+      - name: close
+        tests: [not_null]
+
+  - name: stg_theta_vrp_features
+    description: ThetaData VRP/IV derived features — IV, HV, VRP, IVR, IVP, skew, term structure
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+
+  - name: stg_fred_macro
+    description: FRED macro series — rates, spreads, VIX, CPI, unemployment
+    columns:
+      - name: series_id
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+      - name: value
+        description: Observed value (may be null for unreleased vintages)
+
+  - name: stg_theta_contracts
+    description: ThetaData option contract dimension (empty until contracts are ingested)
+    columns:
+      - name: contract_id
+        description: Stable contract identifier — UNDERLYING|EXPIRY|STRIKE|TYPE
+
+  - name: stg_theta_option_eod
+    description: ThetaData option EOD quotes and Greeks (empty until EOD data is ingested)
+
+  - name: int_underlying_bars_daily
+    description: >
+      Unified daily bar panel across all sources (yahoo, stooq, alphaquant_cache).
+      Deduplicates by symbol + date, preferring yahoo > stooq > alphaquant_cache.
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+      - name: close
+        tests: [not_null]
+      - name: adj_close
+        tests: [not_null]
+
+  - name: int_option_eod
+    description: Option EOD enriched with contract dimension (DTE, strike, type, multiplier)
+    columns:
+      - name: contract_id
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+
+  - name: int_macro_series
+    description: Macro series forward-filled to daily frequency (joined against equity date spine)
+    columns:
+      - name: series_id
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+
+  - name: mart_backtest_equity_panel
+    description: >
+      Primary equity research surface. One row per symbol per date with:
+      returns (1d/5d/21d/63d), log return, 20-day realized vol, 12m/1m momentum,
+      52-week high/low distance.
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+      - name: return_1d
+        description: Daily return using adj_close
+      - name: realized_vol_20d
+        description: 20-day rolling realized vol, annualized (sqrt(252))
+      - name: mom_12m
+        description: 12-month price momentum
+
+  - name: mart_regime_panel
+    description: >
+      Daily regime characterization. SPY price data joined with 14 FRED macro series.
+      Includes rule-based labels for vol regime, trend regime, and yield curve regime.
+    columns:
+      - name: date
+        tests: [not_null]
+      - name: vol_regime
+        description: low_vol / normal_vol / elevated_vol / high_vol (based on VIX)
+      - name: trend_regime
+        description: bull / neutral / bear (based on SPY 63-day momentum)
+      - name: yield_curve_regime
+        description: steep / flat / inverted (based on 10Y-2Y spread)
+
+  - name: mart_optimization_inputs
+    description: >
+      Optimizer-ready panel. One row per symbol per date with annualized return
+      and vol estimates, Sharpe-like signal, VRP features, and regime context.
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+
+  - name: mart_screening_panel
+    description: >
+      Cross-sectional daily scanner surface. Per-symbol VRP ranks, momentum ranks,
+      and regime labels. Filter to a single date for a live scan snapshot.
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+      - name: ivr_rank
+        description: Percentile rank of IVR across universe on this date (0-1)
+      - name: vrp_rank
+        description: Percentile rank of VRP across universe on this date (0-1)
+
+  - name: mart_backtest_option_panel
+    description: >
+      Option backtest panel. Contracts enriched with underlying price, realized vol,
+      Greeks, VRP features, DTE, moneyness, and mid pct of spot.
+    columns:
+      - name: contract_id
+        tests: [not_null]
+      - name: date
+        tests: [not_null]

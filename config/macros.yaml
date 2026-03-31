@@ -1,0 +1,25 @@
+macro_series:
+  - series_id: FEDFUNDS
+    label: Effective Federal Funds Rate
+  - series_id: DGS10
+    label: 10-Year Treasury Constant Maturity Rate
+  - series_id: DGS2
+    label: 2-Year Treasury Constant Maturity Rate
+  - series_id: DGS1MO
+    label: 1-Month Treasury Bill Rate
+  - series_id: T10Y2Y
+    label: 10-Year minus 2-Year Treasury Spread
+  - series_id: T10Y3M
+    label: 10-Year minus 3-Month Treasury Spread
+  - series_id: UNRATE
+    label: Unemployment Rate
+  - series_id: CPIAUCSL
+    label: Consumer Price Index
+  - series_id: VIXCLS
+    label: CBOE Volatility Index
+  - series_id: BAMLH0A0HYM2
+    label: US High Yield OAS
+  - series_id: DTWEXBGS
+    label: Nominal Broad US Dollar Index
+  - series_id: WILL5000IND
+    label: Wilshire 5000 Total Market Index

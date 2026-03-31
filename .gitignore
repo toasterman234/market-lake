@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+.eggs/
+.venv/
+venv/
+
+# DuckDB
+duckdb/*.duckdb
+duckdb/*.duckdb.wal
+
+# dbt
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/profiles.yml
+dbt/.user.yml
+
+# Data (derived — never commit raw vendor data or canonical outputs)
+canonical/
+raw/thetadata/contracts/
+raw/thetadata/options_eod/
+raw/thetadata/vrp/
+
+# Env / caches
+.env
+.pytest_cache/

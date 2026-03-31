@@ -1,0 +1,24 @@
+name: market_lake
+version: 1.0.0
+config-version: 2
+profile: market_lake
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  market_lake_root: "{{ env_var('MARKET_LAKE_ROOT', '.') }}"
+
+models:
+  market_lake:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

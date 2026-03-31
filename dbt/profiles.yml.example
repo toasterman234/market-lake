@@ -1,0 +1,7 @@
+market_lake:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "{{ env_var('MARKET_LAKE_ROOT') }}/duckdb/market.duckdb"
+      threads: 4

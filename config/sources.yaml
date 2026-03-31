@@ -1,0 +1,35 @@
+sources:
+
+  thetadata:
+    description: ThetaData options history — contracts, EOD quotes, Greeks, VRP features
+    raw_root: raw/thetadata
+    contracts_glob: contracts/**/*.{csv,parquet}
+    options_eod_glob: options_eod/**/*.{csv,parquet}
+    vrp_glob: vrp/**/*.parquet
+    notes: >
+      Raw ThetaData files land in raw/thetadata/.
+      Existing VRP parquets can be pointed to directly via --input-dir.
+
+  yahoo:
+    description: Yahoo Finance OHLCV via yfinance
+    notes: Downloads directly to canonical — no raw staging.
+
+  stooq:
+    description: Stooq free historical OHLCV (no API key required)
+    base_url: https://stooq.com/q/d/l/
+    notes: Polite delay between requests (default 1.5s). Data is adjusted by default.
+
+  fred:
+    description: FRED macro and rate series
+    csv_endpoint: https://fred.stlouisfed.org/graph/fredgraph.csv
+    api_endpoint: https://api.stlouisfed.org/fred/series/observations
+    notes: >
+      CSV endpoint works without an API key.
+      Set FRED_API_KEY in .env for higher rate limits.
+      Cache responsibly — do not redistribute raw FRED series files.
+
+  existing_cache:
+    description: Pre-existing equity and VRP parquets from prior projects
+    notes: >
+      Use ingest_existing_equity.py and ingest_theta_vrp_features.py
+      to absorb files from the alphaquant / options-research caches.

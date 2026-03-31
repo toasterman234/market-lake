@@ -1,0 +1,53 @@
+datasets:
+
+  dim_symbol:
+    path: canonical/dimensions/dim_symbol
+    grain: one row per canonical symbol
+    partition_by: []
+    built_by: scripts/build/build_dim_symbol.py
+
+  dim_option_contract:
+    path: canonical/dimensions/dim_option_contract
+    grain: one row per option contract (underlying|expiry|strike|type)
+    partition_by: []
+    built_by: scripts/ingest/ingest_theta_contracts.py
+
+  dim_calendar:
+    path: canonical/dimensions/dim_calendar
+    grain: one row per weekday
+    partition_by: []
+    built_by: scripts/build/build_dim_calendar.py
+
+  fact_underlying_bar_daily:
+    path: canonical/facts/fact_underlying_bar_daily
+    grain: one row per symbol per date per source
+    partition_by: [year]
+    sources: [yahoo, stooq, alphaquant_cache]
+    built_by: scripts/ingest/ingest_yahoo_daily_bars.py
+
+  fact_option_eod:
+    path: canonical/facts/fact_option_eod
+    grain: one row per contract per date
+    partition_by: [underlying_symbol, year, month]
+    sources: [thetadata]
+    built_by: scripts/ingest/ingest_theta_option_eod.py
+
+  fact_macro_series:
+    path: canonical/facts/fact_macro_series
+    grain: one row per series per date
+    partition_by: [series_id]
+    sources: [fred]
+    built_by: scripts/ingest/ingest_fred_macro.py
+
+  fact_option_feature_daily:
+    path: canonical/features/fact_option_feature_daily
+    grain: one row per symbol per date (VRP/IV derived features)
+    partition_by: [year, month]
+    sources: [thetadata]
+    built_by: scripts/ingest/ingest_theta_vrp_features.py
+
+  fact_dataset_manifest:
+    path: canonical/metadata/fact_dataset_manifest
+    grain: one row per ingest batch
+    partition_by: []
+    notes: written automatically by all ingest scripts
