@@ -148,3 +148,29 @@ models:
         tests: [not_null]
       - name: date
         tests: [not_null]
+
+  - name: stg_fundamentals_annual
+    description: Annual financial ratios from fact_fundamentals_annual — Piotroski, Altman Z, and 13 other ratios per symbol per fiscal year.
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: fiscal_year_end
+        tests: [not_null]
+      - name: piotroski_score
+        description: Piotroski F-Score 0-9 (integer)
+      - name: altman_z_score
+        description: Altman Z-Score (>2.99 safe, <1.81 distressed)
+
+  - name: mart_fundamental_screen
+    description: >
+      Composite daily scanner: VRP signals joined to most recent fiscal year fundamentals.
+      One row per symbol. Outputs fundamental_tier (FULL/HALF/QUARTER/SKIP) and composite_score.
+    columns:
+      - name: symbol
+        tests: [not_null]
+      - name: date
+        tests: [not_null]
+      - name: fundamental_tier
+        description: FULL SIZE / HALF SIZE / QUARTER SIZE / SKIP
+      - name: composite_score
+        description: Weighted score — IVR rank 60% + Piotroski 40%

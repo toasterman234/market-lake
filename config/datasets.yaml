@@ -51,3 +51,31 @@ datasets:
     grain: one row per ingest batch
     partition_by: []
     notes: written automatically by all ingest scripts
+
+  fact_corporate_action:
+    path: canonical/facts/fact_corporate_action
+    grain: one row per symbol per corporate action (dividend or split)
+    partition_by: [year]
+    sources: [yfinance]
+    built_by: scripts/ingest/ingest_corporate_actions.py
+
+  fact_financial_statements:
+    path: canonical/facts/fact_financial_statements
+    grain: one row per symbol per fiscal year (raw GAAP statements)
+    partition_by: [year]
+    sources: [yfinance]
+    built_by: scripts/ingest/ingest_fundamentals.py
+
+  fact_fundamentals_annual:
+    path: canonical/facts/fact_fundamentals_annual
+    grain: one row per symbol per fiscal year (computed ratios)
+    partition_by: [year]
+    sources: [yfinance, financetoolkit_formulas]
+    built_by: scripts/ingest/ingest_fundamentals.py
+
+  fact_earnings_calendar:
+    path: canonical/facts/fact_earnings_calendar
+    grain: one row per symbol per earnings date
+    partition_by: [year]
+    sources: [yfinance]
+    built_by: scripts/ingest/ingest_earnings_calendar.py

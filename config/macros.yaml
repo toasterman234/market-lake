@@ -23,3 +23,16 @@ macro_series:
     label: Nominal Broad US Dollar Index
   - series_id: WILL5000IND
     label: Wilshire 5000 Total Market Index
+  CBOE_EQUITY_PC:    # CBOE Equity Put/Call Ratio (2003-2019)
+  CBOE_TOTAL_PC:     # CBOE Total Put/Call Ratio (2003-2019)
+  CBOE_INDEX_PC:     # CBOE Index Put/Call Ratio (2003-2019)
+  VVIX:              # CBOE VIX of VIX
+  SKEW:              # CBOE SKEW Index
+  M2SL:              # M2 Money Supply
+  T5YIE:             # 5-Year Breakeven Inflation
+  DFII10:            # 10-Year Real Rate (TIPS)
+  USEPUINDXD:        # Economic Policy Uncertainty Index
+  DCOILWTICO:        # WTI Crude Oil Price
+  DCOILBRENTEU:      # Brent Crude Oil Price
+  KCFSI:             # KC Financial Stress Index
+  STLFSI4:           # St. Louis Financial Stress Index
