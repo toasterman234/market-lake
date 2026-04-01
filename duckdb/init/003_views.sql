@@ -24,3 +24,6 @@ SELECT * FROM read_parquet('{root}/canonical/facts/fact_macro_series/**/*.parque
 
 CREATE OR REPLACE VIEW metadata.vw_dataset_manifest AS
 SELECT * FROM read_parquet('{root}/canonical/metadata/fact_dataset_manifest/**/*.parquet', union_by_name=true);
+
+CREATE OR REPLACE VIEW canonical.vw_ff_factors_daily AS
+SELECT * FROM read_parquet('{root}/canonical/facts/fact_ff_factors_daily/**/*.parquet', union_by_name=true);
