@@ -1,3 +1,9 @@
+# symbols.yaml — Initial seed list for dim_symbol bootstrap
+# NOTE: This file is ONLY used by scripts/build/build_dim_symbol.py (initial build)
+# The canonical source of truth for the symbol universe is dim_symbol.parquet
+# which currently has 531 symbols populated via enrich_dim_symbol.py + ThetaData VRP.
+# This config does NOT need to be kept in sync with dim_symbol.
+
 symbols:
   - SPY
   - QQQ

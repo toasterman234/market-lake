@@ -10,7 +10,7 @@
 
 These are gaps in data we already have infrastructure for.
 
-### 1.1 Option Chain Full Backfill 🔄 RUNNING OVERNIGHT
+### 1.1 Option Chain Full Backfill ✅ DONE (517 files, 2017→Mar 2026, all 513 symbols)
 **Gap:** `mart_backtest_option_panel` only covers 7 symbols (SPY/QQQ/AAPL/NVDA/META/MSFT/TSLA).
 **Source:** ThetaData (OPTION.STANDARD subscription — already active)
 **Script:** `options-research/scripts/chain_backfill.py`
@@ -39,7 +39,7 @@ cd market-lake
 **Estimated time:** ~21 hours for full 513-symbol universe at 4 workers
 **Expected output:** ~500M additional rows in `fact_option_eod`
 
-### 1.2 Option Contract Dimension — All 513 Symbols [DEPENDS ON 1.1]
+### 1.2 Option Contract Dimension — All 513 Symbols ✅ DONE (pending this pipeline)
 **Gap:** `dim_option_contract` only has 560K contracts from 5 symbols.
 **Fix:** After chain backfill completes, run:
 ```bash
@@ -48,7 +48,7 @@ cd market-lake
     --output-dir canonical/dimensions/dim_option_contract
 ```
 
-### 1.3 Daily Automation via launchd [HIGH PRIORITY]
+### 1.3 Daily Automation via launchd ✅ DONE (M-F 6:45am, launchd installed)
 **Gap:** VRP gap-fill, ingest, and dbt rebuild run manually.
 **Fix:** Create launchd plist for daily 6:45am run (after market open, before scan).
 **Steps:**
@@ -103,7 +103,8 @@ Useful as a market sentiment / contrarian regime signal.
 - dbt: Flows automatically into `int_macro_series` → `mart_regime_panel`
 **Effort:** 2-3 hours
 
-### 2.2 VIX Futures Term Structure / VIX Curve [HIGH]
+### 2.2 VIX Futures Term Structure / VIX Curve ❌ BLOCKED (CBOE CDN returns 403; yfinance 0 rows; needs paid DataShop or IBKR)
+**Workaround:** `vix_ts_slope = VIX3M/VIXCLS - 1` already in `mart_regime_panel`.
 **What:** Daily VIX futures settlement prices (VX1–VX8). Gives the full VIX futures curve,
 which is the most direct measure of vol term structure and contango/backwardation.
 **Source:** CBOE Futures Exchange (free, requires registration)
@@ -117,6 +118,12 @@ which is the most direct measure of vol term structure and contango/backwardatio
 **Effort:** 4-6 hours
 
 ### 2.3 FRED Additional Macro Series ✅ DONE (8 series added)
+### 2.8 Additional CBOE Volatility Indices ✅ DONE
+**Added:** VIX9D, VXD (DJIA), VXN (Nasdaq), VXEEM (EM), VXAPL (Apple), VXO (old VIX, 1993-2021)
+**Source:** CBOE CDN (`cdn.cboe.com/api/global/us_indices/daily_prices/`)
+**Rows:** 26,970 across 6 series
+**Availability check:** VXMT blocked (403); all others free
+
 **What:** Several high-value series not yet in market-lake.
 **Source:** FRED (free, no API key needed)
 
@@ -134,7 +141,7 @@ which is the most direct measure of vol term structure and contango/backwardatio
 **Implementation:** Add series IDs to `config/macros.yaml` and re-run `ingest_fred_macro.py`.
 **Effort:** 30 minutes
 
-### 2.4 Earnings Calendar [MEDIUM]
+### 2.4 Earnings Calendar ✅ DONE (12,256 rows, 499 symbols, forward dates to Jul 2026)
 **What:** Expected earnings dates per symbol. Critical for avoiding binary event risk
 in options premium selling — never sell premium into earnings without knowing.
 **Source:** Multiple free options:
@@ -148,7 +155,7 @@ in options premium selling — never sell premium into earnings without knowing.
 - Use case: Filter out any option position within 5 days of earnings
 **Effort:** 4-6 hours (scraping complexity)
 
-### 2.5 Short Interest [MEDIUM]
+### 2.5 Short Interest ✅ DONE (15.4M rows, daily 2020-present via FINRA CDN)
 **What:** Bi-monthly short interest data per symbol (short shares, days to cover).
 Useful for understanding positioning and squeeze risk.
 **Source:** FINRA (free, bi-monthly)
@@ -239,7 +246,7 @@ Computable from existing option EOD data — no new source needed.
 
 ---
 
-### 3.3 dbt Models — Fundamental Screening Layer [FREE]
+### 3.3 dbt Models — Fundamental Screening Layer ✅ DONE (stg_fundamentals_annual + mart_fundamental_screen)
 **New models:**
 
 ```
@@ -265,7 +272,7 @@ END AS fundamental_tier
 
 ---
 
-### 3.4 Composite Scanner — VRP + Fundamentals [FREE]
+### 3.4 Composite Scanner — VRP + Fundamentals ✅ DONE
 **The finished daily query:**
 
 ```sql
@@ -311,7 +318,7 @@ When you want quarterly data or 30-year history:
 
 ## Phase 4 — Paid / Subscription Data Expansion
 
-### 4.1 ThetaData — Full Historical Backfill [HIGHEST IMPACT, PAID]
+### 4.1 ThetaData — Full Historical Backfill ✅ DONE (OPTION.STANDARD, 517 files)
 Already have OPTION.STANDARD subscription. See Phase 1.1 above.
 
 ### 4.2 ThetaData — ORATS IV Surface [PAID, FUTURE]

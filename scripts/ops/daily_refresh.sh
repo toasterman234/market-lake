@@ -39,7 +39,7 @@ log "Equity bars top-up..."
     --symbols SPY QQQ IWM TLT GLD DIA XLK XLF XLV XLE XLI XLP XLU XLY XLB XLRE \
               AAPL MSFT NVDA AMZN GOOGL META TSLA JPM BAC GS COST LLY AVGO AMD NFLX \
     --start "$(date -v-5d +%Y-%m-%d 2>/dev/null || date -d '5 days ago' +%Y-%m-%d)" \
-    --end "$(date +%Y-%m-%d)"" 2>&1 | tee -a "$LOG"
+    --end "$(date +%Y-%m-%d)" 2>&1 | tee -a "$LOG"
 
 # 5. FRED macro (picks up latest daily series)
 log "FRED macro refresh..."

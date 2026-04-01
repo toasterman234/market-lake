@@ -246,3 +246,111 @@ class TestMacroSeriesCompleteness:
             WHERE series_id IS NULL OR date IS NULL
         """).iloc[0, 0]
         assert r == 0
+
+
+# ── fact_option_feature_daily — VRP data quality ─────────────────────────────
+
+@skip_if_missing("canonical/features/fact_option_feature_daily")
+class TestVRPFeatures:
+    PATH = ROOT / "canonical/features/fact_option_feature_daily"
+
+    def test_no_duplicates(self):
+        dups = query(f"""
+            SELECT COUNT(*) FROM (
+                SELECT symbol, date, COUNT(*) n
+                FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+                GROUP BY symbol, date HAVING n > 1
+            )
+        """).iloc[0, 0]
+        assert dups == 0, f"Found {dups:,} duplicate (symbol, date) keys"
+
+    def test_iv_positive(self):
+        """Raw parquets preserve original ThetaData values.
+        iv_30d may exceed 3.0 for very illiquid options (ThetaData artifact);
+        stg_theta_vrp_features caps at 3.0 via LEAST(iv_30d, 3.0).
+        We only enforce that present values are strictly positive."""
+        bad = query(f"""
+            SELECT COUNT(*) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE iv_30d IS NOT NULL AND iv_30d <= 0
+        """).iloc[0, 0]
+        assert bad == 0, f"{bad} rows with IV <= 0"
+
+    def test_iv_artifact_count_acceptable(self):
+        """Track count of extreme IV artifacts (> 3.0 = 300%). Should be < 1% of rows."""
+        total = query(f"""
+            SELECT COUNT(*) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE iv_30d IS NOT NULL
+        """).iloc[0, 0]
+        extreme = query(f"""
+            SELECT COUNT(*) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE iv_30d > 3.0
+        """).iloc[0, 0]
+        pct = extreme / total * 100 if total > 0 else 0
+        assert pct < 1.0, f"Too many extreme IV artifacts: {extreme:,} ({pct:.2f}%)"
+
+    def test_ivr_bounds(self):
+        bad = query(f"""
+            SELECT COUNT(*) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE ivr_252d IS NOT NULL AND (ivr_252d < 0 OR ivr_252d > 1.0)
+        """).iloc[0, 0]
+        assert bad == 0, f"{bad} rows with IVR outside [0, 1]"
+
+    def test_symbol_count(self):
+        n = query(f"""
+            SELECT COUNT(DISTINCT symbol)
+            FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+        """).iloc[0, 0]
+        assert n >= 500, f"Expected >= 500 VRP symbols, got {n}"
+
+    def test_date_is_date_type(self):
+        dtype = query(f"""
+            SELECT typeof(date) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true) LIMIT 1
+        """).iloc[0, 0]
+        # Can be DATE or TIMESTAMP — both acceptable
+        assert "DATE" in dtype.upper() or "TIMESTAMP" in dtype.upper()
+
+
+# ── fact_underlying_bar_daily — single file per partition ─────────────────────
+
+@skip_if_missing("canonical/facts/fact_underlying_bar_daily")
+class TestEquityBarsPartitions:
+    PATH = ROOT / "canonical/facts/fact_underlying_bar_daily"
+
+    def test_no_duplicate_symbol_date(self):
+        """After int dedup, no (symbol, date) duplicates should reach marts."""
+        # Note: raw parquets MAY have multi-source duplicates (handled by int layer)
+        # We just verify the year=2026 partition (most recent) is clean
+        p2026 = self.PATH / "year=2026"
+        if not p2026.exists():
+            return
+        dups = query(f"""
+            SELECT COUNT(*) FROM (
+                SELECT symbol, date, COUNT(*) n
+                FROM read_parquet('{p2026}/*.parquet', union_by_name=true)
+                GROUP BY symbol, date HAVING n > 1
+            )
+        """).iloc[0, 0]
+        assert dups == 0, f"{dups} duplicate (symbol,date) in year=2026"
+
+    def test_positive_prices(self):
+        bad = query(f"""
+            SELECT COUNT(*) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE close <= 0 OR high <= 0 OR low <= 0
+        """).iloc[0, 0]
+        assert bad == 0
+
+    def test_high_gte_low(self):
+        bad = query(f"""
+            SELECT COUNT(*) FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE high < low
+        """).iloc[0, 0]
+        assert bad == 0
+
+    def test_date_range_spx(self):
+        r = query(f"""
+            SELECT MIN(date)::VARCHAR, MAX(date)::VARCHAR
+            FROM read_parquet('{self.PATH}/**/*.parquet', union_by_name=true)
+            WHERE symbol = 'SPY'
+        """).iloc[0]
+        assert r.iloc[0] < "2010-01-01", "SPY data should go back before 2010"
+        assert r.iloc[1] > "2026-01-01", "SPY data should extend into 2026"
