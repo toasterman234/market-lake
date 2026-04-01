@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.market-lake.daily-refresh</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Volumes/Extra Storage Crucial 1TB SSD/Projects/Infrastructure/Master Data Folder/market-lake/scripts/ops/daily_refresh.sh</string>
+    </array>
+
+    <!-- Run every weekday at 6:45am -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Weekday</key><integer>1</integer>
+            <key>Hour</key><integer>6</integer>
+            <key>Minute</key><integer>45</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>2</integer>
+            <key>Hour</key><integer>6</integer>
+            <key>Minute</key><integer>45</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>3</integer>
+            <key>Hour</key><integer>6</integer>
+            <key>Minute</key><integer>45</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>4</integer>
+            <key>Hour</key><integer>6</integer>
+            <key>Minute</key><integer>45</integer>
+        </dict>
+        <dict>
+            <key>Weekday</key><integer>5</integer>
+            <key>Hour</key><integer>6</integer>
+            <key>Minute</key><integer>45</integer>
+        </dict>
+    </array>
+
+    <key>StandardOutPath</key>
+    <string>/tmp/market-lake-daily.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/market-lake-daily-error.log</string>
+
+    <!-- Only run if machine is awake — don't catch up on missed runs -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
