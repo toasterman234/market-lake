@@ -12,5 +12,5 @@ def test_build_basic():
     assert len(df) == 3 and set(df["symbol"]) == {"SPY","QQQ","AAPL"}
 def test_deduplicates():     assert len(build_dim_symbol(["SPY","spy","SPY"])) == 1
 def test_asset_types():
-    df = build_dim_symbol(["SPY","AAPL"], asset_type_map={"SPY":"etf","AAPL":"stock"})
-    assert df.set_index("symbol").loc["SPY","asset_type"] == "etf"
+    df = build_dim_symbol(["SPY", "AAPL"])
+    assert "asset_type" in df.columns

@@ -28,6 +28,11 @@ models:
         tests: [not_null]
 
   - name: stg_theta_vrp_features
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - symbol
+              - date
     description: ThetaData VRP/IV derived features — IV, HV, VRP, IVR, IVP, skew, term structure
     columns:
       - name: symbol
@@ -36,6 +41,11 @@ models:
         tests: [not_null]
 
   - name: stg_fred_macro
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - series_id
+              - date
     description: FRED macro series — rates, spreads, VIX, CPI, unemployment
     columns:
       - name: series_id
@@ -55,6 +65,11 @@ models:
     description: ThetaData option EOD — 207M rows across 7 symbols (2008–2026). Includes bid/ask/IV/Greeks/DTE.
 
   - name: int_underlying_bars_daily
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - symbol
+              - date
     description: >
       Unified daily bar panel across all sources (yahoo, stooq, alphaquant_cache).
       Deduplicates by symbol + date, preferring yahoo > stooq > alphaquant_cache.
@@ -85,6 +100,11 @@ models:
         tests: [not_null]
 
   - name: mart_backtest_equity_panel
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - symbol
+              - date
     description: >
       Primary equity research surface. One row per symbol per date with:
       returns (1d/5d/21d/63d), log return, 20-day realized vol, 12m/1m momentum,
@@ -102,6 +122,10 @@ models:
         description: 12-month price momentum
 
   - name: mart_regime_panel
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - date
     description: >
       Daily regime characterization. SPY price data joined with 14 FRED macro series.
       Includes rule-based labels for vol regime, trend regime, and yield curve regime.
@@ -126,6 +150,11 @@ models:
         tests: [not_null]
 
   - name: mart_screening_panel
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - symbol
+              - date
     description: >
       Cross-sectional daily scanner surface. Per-symbol VRP ranks, momentum ranks,
       and regime labels. Filter to a single date for a live scan snapshot.
@@ -162,6 +191,10 @@ models:
         description: Altman Z-Score (>2.99 safe, <1.81 distressed)
 
   - name: mart_fundamental_screen
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+              - symbol
     description: >
       Composite daily scanner: VRP signals joined to most recent fiscal year fundamentals.
       One row per symbol. Outputs fundamental_tier (FULL/HALF/QUARTER/SKIP) and composite_score.

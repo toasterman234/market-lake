@@ -38,10 +38,13 @@ fundamentals as (
 ),
 
 screening as (
-    select DISTINCT ON (symbol) symbol, date, ivr_252d, ivp_252d, vrp_30d,
+    -- Take the most recent row per symbol rather than filtering to a single global max date.
+    -- Different symbols have different data lags (chains updated on different days),
+    -- so a global max date filter would silently drop symbols updated 1-2 days earlier.
+    select symbol, date, ivr_252d, ivp_252d, vrp_30d,
            ivr_rank, vrp_rank, mom_rank, iv_30d, realized_vol_20d, mom_12m
     from {{ ref('mart_screening_panel') }}
-    where date = (select max(date) from {{ ref('mart_screening_panel') }})
+    qualify row_number() over (partition by symbol order by date desc) = 1
 ),
 
 sym as (

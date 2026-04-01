@@ -1,0 +1,18 @@
+{
+  "date": "2026-04-01",
+  "counts": {
+    "fact_underlying_bar_daily": 2579130,
+    "fact_option_eod": 767396301,
+    "fact_option_feature_daily": 1122873,
+    "fact_macro_series": 204174,
+    "fact_ff_factors_daily": 26070,
+    "fact_corporate_action": 50823,
+    "fact_financial_statements": 2375,
+    "fact_fundamentals_annual": 2375,
+    "fact_earnings_calendar": 12256,
+    "fact_short_interest": 15392602,
+    "dim_symbol": 531,
+    "dim_option_contract": 9917418,
+    "dim_calendar": 6260
+  }
+}

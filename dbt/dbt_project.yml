@@ -19,6 +19,8 @@ models:
     intermediate:
       +materialized: view
       +schema: intermediate
+      int_macro_series:
+        +materialized: table
     marts:
       +materialized: table
       +schema: marts

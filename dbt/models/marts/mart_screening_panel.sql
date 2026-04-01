@@ -14,4 +14,4 @@ select e.symbol_id, e.symbol, e.date, e.close, e.volume, e.return_1d, e.return_2
     r.vol_regime, r.trend_regime
 from e
 left join v on v.symbol=e.symbol and v.date=e.date
-left join r on r.date=e.date
+left join r on r.date::DATE=e.date::DATE

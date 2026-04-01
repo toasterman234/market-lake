@@ -1,0 +1,279 @@
+# config/schemas.yaml
+# Canonical schema definitions for every table in market-lake.
+# These are the SOURCE OF TRUTH for column names and types.
+# write_parquet() reads this file and enforces types before writing.
+# Any type mismatch at write time raises SchemaError immediately.
+#
+# Types use PyArrow string names:
+#   date32          = calendar date (DATE in DuckDB)
+#   int32 / int64   = integer
+#   float64         = double precision float
+#   string          = UTF-8 string
+#   bool_           = boolean
+
+tables:
+
+  # ── FACTS ────────────────────────────────────────────────────────────────
+
+  fact_underlying_bar_daily:
+    grain: one row per symbol per date
+    partition_by: [year]
+    natural_key: [symbol, date]
+    columns:
+      symbol_id: int64
+      symbol: string
+      date: date32
+      open: float64
+      high: float64
+      low: float64
+      close: float64
+      adj_close: float64
+      volume: int64
+      source: string
+      year: int32
+
+  fact_option_eod:
+    grain: one row per contract per date
+    partition_by: [year, month]
+    natural_key: [contract_id, date]
+    columns:
+      contract_id: string
+      symbol_id: int64
+      underlying_symbol: string
+      date: date32
+      expiry: date32
+      strike: float64
+      option_type: string
+      bid: float64
+      ask: float64
+      mid: float64
+      last: float64
+      volume: int64
+      open_interest: int64
+      iv: float64
+      delta: float64
+      gamma: float64
+      theta: float64
+      vega: float64
+      rho: float64
+      dte: int32
+      source: string
+      year: int32
+      month: int32
+
+  fact_option_feature_daily:
+    grain: one row per symbol per date
+    partition_by: [year]
+    natural_key: [symbol, date]
+    columns:
+      symbol_id: int64
+      symbol: string
+      date: date32           # ← must be DATE not TIMESTAMP
+      spot_price: float64
+      iv_7d: float64
+      iv_14d: float64
+      iv_21d: float64
+      iv_30d: float64
+      iv_45d: float64
+      iv_60d: float64
+      iv_90d: float64
+      iv_180d: float64
+      ts_slope_30_60: float64
+      ts_slope_30_90: float64
+      put_iv_10d: float64
+      put_iv_25d: float64
+      put_iv_50d: float64
+      call_iv_10d: float64
+      call_iv_25d: float64
+      call_iv_50d: float64
+      put_skew_25d: float64
+      put_skew_10d: float64
+      skew_slope: float64
+      wing_premium: float64
+      pc_volume_ratio: float64
+      total_volume: float64
+      hv5: float64
+      hv10: float64
+      hv20: float64
+      hv30: float64
+      hv60: float64
+      hv90: float64
+      vrp_30d: float64
+      vrp_60d: float64
+      vrp_90d: float64
+      ivr_252d: float64
+      ivp_252d: float64
+      source: string
+      year: int32
+
+  fact_macro_series:
+    grain: one row per series per date
+    partition_by: [series_id]
+    natural_key: [series_id, date]
+    columns:
+      series_id: string
+      label: string
+      date: date32
+      value: float64
+      source: string
+      year: int32
+
+  fact_ff_factors_daily:
+    grain: one row per date
+    partition_by: [year]
+    natural_key: [date]
+    columns:
+      date: date32
+      mkt_rf: float64
+      smb: float64
+      hml: float64
+      rmw: float64
+      cma: float64
+      rf: float64
+      mom: float64
+      source: string
+      year: int32
+
+  fact_corporate_action:
+    grain: one row per symbol per action event
+    partition_by: [year]
+    natural_key: [symbol, action_date, action_type]
+    columns:
+      symbol_id: int64
+      symbol: string
+      action_date: date32
+      action_type: string
+      value: float64
+      split_ratio: string
+      source: string
+      year: int32
+
+  fact_financial_statements:
+    grain: one row per symbol per fiscal year
+    partition_by: [year]
+    natural_key: [symbol, fiscal_year_end]
+    columns:
+      symbol_id: int64
+      symbol: string
+      fiscal_year_end: date32    # ← must be DATE not TIMESTAMP
+      period_type: string
+      revenue: float64
+      gross_profit: float64
+      ebit: float64
+      net_income: float64
+      eps_diluted: float64
+      eps_basic: float64
+      interest_expense: float64
+      tax_provision: float64
+      total_assets: float64
+      total_debt: float64
+      long_term_debt: float64
+      total_equity: float64
+      cash: float64
+      current_assets: float64
+      current_liabilities: float64
+      retained_earnings: float64
+      total_liabilities: float64
+      shares_outstanding: float64
+      operating_cash_flow: float64
+      capex: float64
+      free_cash_flow: float64
+      da: float64
+      rd_expense: float64
+      year: int32
+
+  fact_fundamentals_annual:
+    grain: one row per symbol per fiscal year
+    partition_by: [year]
+    natural_key: [symbol, fiscal_year_end]
+    columns:
+      symbol_id: int64
+      symbol: string
+      fiscal_year_end: date32    # ← must be DATE not TIMESTAMP
+      period_type: string
+      gross_margin: float64
+      ebit_margin: float64
+      net_margin: float64
+      roe: float64
+      roa: float64
+      current_ratio: float64
+      debt_to_equity: float64
+      debt_to_assets: float64
+      interest_coverage: float64
+      fcf_margin: float64
+      earnings_quality: float64
+      revenue_growth_yoy: float64
+      earnings_growth_yoy: float64
+      altman_z_score: float64
+      piotroski_score: int32     # ← must be INTEGER not FLOAT/BIGINT
+      year: int32
+
+  fact_earnings_calendar:
+    grain: one row per symbol per earnings date
+    partition_by: [year]
+    natural_key: [symbol, earnings_date]
+    columns:
+      symbol_id: int64
+      symbol: string
+      earnings_date: date32
+      eps_estimate: float64
+      eps_actual: float64
+      eps_surprise_pct: float64
+      source: string
+      year: int32
+
+  fact_short_interest:
+    grain: one row per symbol per settle date
+    partition_by: [year]
+    natural_key: [symbol, settle_date]
+    columns:
+      symbol_id: int64
+      symbol: string
+      settle_date: date32
+      short_shares: float64
+      avg_daily_volume: float64
+      days_to_cover: float64
+      source: string
+      year: int32
+
+  # ── DIMENSIONS ────────────────────────────────────────────────────────────
+
+  dim_symbol:
+    grain: one row per symbol
+    partition_by: []
+    natural_key: [symbol]
+    columns:
+      symbol_id: int64
+      symbol: string
+      asset_type: string
+      sector: string
+      industry: string
+
+  dim_option_contract:
+    grain: one row per contract
+    partition_by: []
+    natural_key: [contract_id]
+    columns:
+      contract_id: string
+      symbol_id: int64
+      underlying_symbol: string
+      occ_symbol: string
+      expiry: date32
+      strike: float64
+      option_type: string
+      multiplier: int32
+      first_seen: date32
+      last_seen: date32
+
+  dim_calendar:
+    grain: one row per date
+    partition_by: []
+    natural_key: [date]
+    columns:
+      date: date32
+      year: int32
+      month: int32
+      day: int32
+      day_of_week: int32
+      is_trading_day: bool_
+      quarter: int32
