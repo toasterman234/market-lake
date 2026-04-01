@@ -1,7 +1,57 @@
 # Changelog
 
-All notable changes to market-lake are documented here.
-Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
+---
+
+## [0.2.0] — 2026-04-01
+
+### Added
+
+**Data**
+- FF5 + momentum factors ingested (26,070 rows, 1926–Jan 2026, Kenneth French library)
+- CBOE vol series added: VIX3M, GVZ (Gold VIX), OVX (Oil VIX) via FRED
+- dim_symbol expanded from 40 → 531 symbols (all equity symbols from canonical data)
+- dim_calendar corrected: 8,086 rows/2035 → 6,260 rows/2028 (covers LEAPS, not unnecessary future)
+- Option EOD ingested: 207M rows across 7 symbols (2008–2026) from ThetaData vrp_validate + chain parquets
+- VRP gap-fill completed: 513 symbols updated to Mar 30 2026 (2.24M total rows)
+
+**Models**
+- `stg_ff_factors` — new staging model for FF factors
+- `int_macro_series` updated — now merges FRED + 7 FF factors + 3 CBOE vol indices (21 series total)
+- `mart_regime_panel` expanded — 10 → 33 columns including VIX3M, vix_term_structure, gold_vix, oil_vix, all FF factors
+- `mart_optimization_inputs` updated — adds FF factors + excess_return_1d (return minus RF)
+
+**Scripts**
+- `ingest_ff_factors.py` — new, handles Kenneth French CSV format
+- `ingest_theta_option_eod.py` — rewrote: memory-safe (one file at a time), handles all ThetaData column variants
+- `ingest_theta_vrp_features.py` — rewrote: memory-safe, symbol-by-symbol with gc.collect()
+- `ingest_existing_equity.py` — rewrote: memory-safe
+- `ingest_theta_contracts.py` — fixed column mapping for chain parquet format (right→option_type, expiration→expiry)
+- `ingest_stooq_daily_bars.py` — updated: exits cleanly when Stooq blocks requests, clear error message
+
+**Documentation**
+- `STATUS.md` — new: current data state, test results, what works/doesn't/in-progress
+- `ROADMAP.md` — new: full prioritised plan for data additions, free sources, integration patterns
+- `docs/data_sources.md` — new: comprehensive source reference (current, planned, evaluated)
+- `README.md` — rewritten: status table, source table, links to all docs
+- `dbt/models/schema.yml` — added column-level not_null tests for all 15 models
+- `CONTRIBUTING.md`, `docs/architecture.md`, `docs/data_dictionary.md`, `docs/ingestion_guide.md`, `docs/query_guide.md` — all present from v0.1.0
+
+**Operations**
+- Watcher script (`/tmp/market_lake_post_gapfill.sh`) — auto-ingest + dbt rebuild on gap-fill completion
+- Manifest dedup — 15 duplicate rows cleaned to 8 canonical records
+
+### Fixed
+- `parquet.py` — removed `use_legacy_dataset=True` (removed in PyArrow 23)
+- `mart_backtest_equity_panel.sql` — refactored nested window functions into 3 CTEs
+- `int_underlying_bars_daily.sql` — changed to read all sources (not just source='yahoo')
+- `stg_theta_option_eod.sql` — pass through expiry/strike/option_type columns
+- `int_option_eod.sql` — nullable-safe join; unmatched rows kept not silently dropped
+- `stg_theta_contracts.sql` / `stg_theta_option_eod.sql` — placeholder parquets prevent glob errors
+
+### Tests
+- 36 / 36 pytest unit tests passing
+- 28 / 28 dbt schema tests passing
+- 15 / 15 dbt models building clean
 
 ---
 
@@ -9,67 +59,18 @@ Follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) format.
 
 ### Added — Core foundation
 
-**Python package (`src/market_lake/`)**
-- `settings.py` — `Settings.load()` reads `MARKET_LAKE_ROOT` from `.env`, exposes all canonical paths
-- `io/duckdb_conn.py` — `connect()`, `open_db()` context manager, `run_sql_file()`
-- `io/parquet.py` — `write_parquet()` with content-hash filenames and PyArrow Hive partitioning
-- `io/manifests.py` — `ManifestRecord`, `write_manifest()`, `load_manifests()`, `build_batch_id()`
-- `ids/contract_id.py` — `make_contract_id()` producing `UNDERLYING|EXPIRY|STRIKE|TYPE` format
-- `ids/symbol_map.py` — `stable_symbol_id()` (deterministic SHA-256 int), `build_dim_symbol()`
-- `validation/prices.py` — OHLCV integrity checks (high/low, NaN, negative volume)
-- `validation/options.py` — contract and EOD validation (duplicates, bid > ask, IV sanity)
-- `validation/macros.py` — macro series duplicate and null checks
-
-**DuckDB bootstrap**
-- `duckdb/init/001_extensions.sql` — parquet, httpfs, json
-- `duckdb/init/002_schemas.sql` — raw, canonical, features, marts, metadata
-- `duckdb/init/003_views.sql` — template with `{root}` substitution for absolute paths
-- `scripts/build/bootstrap_duckdb.py` — renders view template, gracefully skips missing data
-
-**Dimension builders**
-- `scripts/build/build_dim_symbol.py` — builds `dim_symbol` from `config/symbols.yaml`
-- `scripts/build/build_dim_calendar.py` — generates weekday calendar 2005–2035
-
-**Ingest scripts**
-- `scripts/ingest/ingest_existing_equity.py` — absorbs `*_daily_*.parquet` from any cache directory
-- `scripts/ingest/ingest_theta_vrp_features.py` — absorbs ThetaData `*_vrp_*.parquet` files
-- `scripts/ingest/ingest_theta_contracts.py` — normalizes ThetaData contract listings
-- `scripts/ingest/ingest_theta_option_eod.py` — normalizes ThetaData option EOD files
-- `scripts/ingest/ingest_yahoo_daily_bars.py` — downloads via yfinance with retry
-- `scripts/ingest/ingest_stooq_daily_bars.py` — downloads from Stooq free CSV endpoint
-- `scripts/ingest/ingest_fred_macro.py` — fetches 12 curated FRED series
-
-**dbt transform layer (14 models)**
-- 6 staging models: yahoo, stooq, theta contracts, theta EOD, theta VRP, FRED macro
-- 3 intermediate models: unified bars (all sources), option EOD + DTE, macro forward-fill
-- 5 mart tables: equity backtest panel, option backtest panel, regime panel,
-  optimization inputs, screening panel
-
-**Configuration**
-- `config/symbols.yaml` — 40-symbol universe with asset types and source aliases
-- `config/macros.yaml` — 12 curated FRED series (rates, spreads, VIX, inflation, FX)
-- `config/datasets.yaml` — table registry with grain, partition, and builder documentation
-- `config/sources.yaml` — source registry with URLs and licensing notes
-
-**Tests (13 passing)**
-- `test_contract_id.py` — 6 tests
-- `test_symbol_map.py` — 7 tests
-- `test_validation_prices.py` — 7 tests
-- `test_validation_options.py` — 7 tests
-- `test_manifests.py` — 6 tests
-- `test_parquet_io.py` — 4 tests
+- Python package (`src/market_lake/`): settings, io, ids, validation
+- 7 ingest scripts: equity, VRP features, options EOD, Yahoo, Stooq, FRED, FF factors
+- 3 build scripts: bootstrap_duckdb, dim_symbol, dim_calendar
+- 14 dbt models: 6 staging, 3 intermediate, 5 marts
+- DuckDB init SQL: extensions, schemas, views
+- 4 docs: architecture, data dictionary, ingestion guide, query guide
+- dbt schema.yml with column-level tests
+- 13 pytest tests (now 36 after v0.2.0 additions)
 
 ### Initial data load
-
-- **2,579,090** equity bar rows (531 symbols, 2005–2026, alphaquant cache)
-- **1,122,018** VRP feature rows (513 symbols, 2017–2026, ThetaData vrp_clean)
-- **85,951** macro observation rows (11 FRED series, 1947–2026)
-- **8,086** calendar dimension rows (2005–2035 weekdays)
-- **40** symbols in dim_symbol
-
-### Bug fixes (found during verification)
-- `parquet.py`: Removed `use_legacy_dataset=True` (removed in PyArrow 23)
-- `mart_backtest_equity_panel.sql`: Refactored nested window functions into 3 CTEs
-- `int_underlying_bars_daily.sql`: Changed to read all sources (not just `source='yahoo'`)
-- `stg_theta_contracts.sql` / `stg_theta_option_eod.sql`: Added placeholder parquets to
-  prevent glob errors when option data not yet ingested
+- 2,579,090 equity bar rows (531 symbols, 2005–2026, alphaquant cache)
+- 1,122,018 VRP feature rows (513 symbols, 2017–2026, ThetaData vrp_clean)
+- 85,951 macro rows (11 FRED series)
+- 8,086 calendar rows (2005–2035 weekdays)
+- 40 symbols in dim_symbol
