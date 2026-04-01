@@ -3,6 +3,9 @@
 -- Passes through expiry/strike/option_type if present in the raw files
 -- so int_option_eod can use them without requiring the contract dimension.
 
+-- Deduplicate on (contract_id, date) — chain parquet quarterly boundaries create
+-- overlapping rows. Take row with highest bid (most liquid/recent snapshot).
+with raw as (
 select
     contract_id,
     try_cast(symbol_id as bigint)               as symbol_id,
@@ -40,3 +43,15 @@ from read_parquet(
 )
 where contract_id is not null
   and date is not null
+),
+
+deduped as (
+    select *,
+        row_number() over (
+            partition by contract_id, date
+            order by coalesce(bid, -1) desc
+        ) as rn
+    from raw
+)
+
+select * exclude (rn) from deduped where rn = 1
