@@ -1,3 +1,57 @@
+## [0.4.0] — 2026-04-01 (overnight + audit session)
+
+### Added — New canonical tables
+
+**`fact_short_interest`** — 15,397,564 rows, daily 2020-present
+- FINRA daily short sale volume for ~11,000 US-listed securities
+- Script: `scripts/ingest/ingest_short_interest.py`
+- URL: `cdn.finra.org/equity/regsho/daily/CNMSshvol{YYYYMMDD}.txt`
+- Schema: symbol, settle_date, short_shares, avg_daily_volume, days_to_cover
+- Covers ~1,630 trading days from 2020-01-02 to 2026-03-31
+
+**`fact_earnings_calendar`** — 12,256 rows, 499 symbols
+- Historical + forward earnings dates via yfinance
+- Covers 2007-2026, including 496 upcoming earnings events
+- Script: `scripts/ingest/ingest_earnings_calendar.py`
+- Required: lxml (`pip install lxml` in .venv)
+
+**CBOE Put/Call Ratios** added to `fact_macro_series` (3 new series)
+- CBOE_EQUITY_PC, CBOE_TOTAL_PC, CBOE_INDEX_PC (2003-2019)
+- Source: `cdn.cboe.com/resources/options/volume_and_call_put_ratios/`
+- Note: 2019-present unavailable from free CDN (moved to paid DataShop)
+
+### Added — New dbt models (17 total)
+- `stg_fundamentals_annual`: type-safe staging for fact_fundamentals_annual
+- `mart_fundamental_screen`: composite VRP + Piotroski + Altman Z scanner
+  * 18 FULL SIZE, 127 HALF SIZE, 293 QUARTER SIZE, 83 SKIP (521 total)
+  * Top candidates: AOS (Piotr=8, Z=3.91), APP (Piotr=9), LRCX (Piotr=8)
+
+### Fixed — Bugs (deep audit)
+
+**CRITICAL**: `stg_theta_option_eod` — 50.6M rows had null `underlying_symbol`
+  - Root cause: `thetadata_vrp_validate` source didn't populate the field
+  - Fix: `COALESCE(nullif(underlying_symbol,'NAN'), SPLIT_PART(contract_id,'|',1))`
+  - All 207M option EOD rows now have valid underlying_symbol
+
+**MEDIUM**: `mart_regime_panel` was missing VVIX, SKEW, M2, WTI, EPU, KC stress
+  - All 6 new macro series were in `int_macro_series` but not exposed
+  - Regime panel now covers 33 columns total
+
+**LOW**: `daily_refresh.sh` — relative path + macOS-only date syntax both fixed
+**LOW**: `fact_earnings_calendar` — 1 duplicate (SMCI 2025-02-25) removed
+
+### Infrastructure
+- launchd automation installed: M-F 6:45am daily refresh
+- `scripts/ops/daily_refresh.sh` + `com.market-lake.daily-refresh.plist`
+
+### Overnight processes completed
+- Option chain full backfill: 517 files, all 513 symbols × 2017→2026 ✅
+- Short interest: 15.4M rows (2020-present) ✅
+- dbt run: 17/17 models, 0 errors ✅
+- pytest: 36/36 passing ✅
+
+---
+
 # Changelog
 
 ---
