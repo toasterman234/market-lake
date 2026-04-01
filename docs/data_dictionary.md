@@ -173,3 +173,129 @@ Audit trail. One row per ingest batch.
 | `ingested_at` | string | UTC ISO timestamp |
 | `status` | string | `success` or `error` |
 | `notes` | string | Optional notes |
+
+
+---
+
+## fact_corporate_action
+
+One row per symbol per corporate action event (dividend or split).
+Partitioned by `year`.
+
+| Column | Type | Description |
+|---|---|---|
+| `symbol_id` | integer | FK → dim_symbol |
+| `symbol` | string | Ticker |
+| `action_date` | date | Date of the action |
+| `action_type` | string | `dividend` or `split` |
+| `value` | double | Dividend amount ($/share) or split ratio (e.g. 4.0 = 4:1 split) |
+| `split_ratio` | string | Human-readable ratio string (e.g. `4:1`, `1:10`) |
+| `year` | integer | Partition key |
+
+**Source:** yfinance `ticker.actions`
+**Script:** `scripts/ingest/ingest_corporate_actions.py`
+
+---
+
+## fact_financial_statements
+
+Annual GAAP financial statements per symbol per fiscal year.
+One row per symbol per fiscal year end. Partitioned by `year`.
+
+| Column | Type | Description |
+|---|---|---|
+| `symbol_id` | integer | FK → dim_symbol |
+| `symbol` | string | Ticker |
+| `fiscal_year_end` | date | Fiscal year end date |
+| `period_type` | string | Always `annual` |
+| `revenue` | double | Total revenue |
+| `gross_profit` | double | Gross profit |
+| `ebit` | double | Earnings before interest and tax |
+| `net_income` | double | Net income |
+| `eps_diluted` | double | Diluted EPS |
+| `eps_basic` | double | Basic EPS |
+| `interest_expense` | double | Interest expense |
+| `tax_provision` | double | Income tax provision |
+| `rd_expense` | double | R&D expense |
+| `total_assets` | double | Total assets |
+| `total_debt` | double | Total debt (short + long term) |
+| `long_term_debt` | double | Long-term debt only |
+| `total_equity` | double | Total stockholders equity |
+| `cash` | double | Cash and cash equivalents |
+| `current_assets` | double | Current assets |
+| `current_liabilities` | double | Current liabilities |
+| `retained_earnings` | double | Retained earnings |
+| `total_liabilities` | double | Total liabilities |
+| `shares_outstanding` | double | Ordinary shares outstanding |
+| `operating_cash_flow` | double | Operating cash flow |
+| `capex` | double | Capital expenditures (negative in yfinance) |
+| `free_cash_flow` | double | Free cash flow (operating + capex) |
+| `da` | double | Depreciation and amortization |
+| `year` | integer | Partition key |
+
+**Source:** yfinance `ticker.income_stmt`, `ticker.balance_sheet`, `ticker.cashflow`
+**Script:** `scripts/ingest/ingest_fundamentals.py`
+**Coverage:** 4 years annual per symbol; ETFs excluded
+
+---
+
+## fact_fundamentals_annual
+
+Computed financial ratios per symbol per fiscal year.
+One row per symbol per fiscal year. Partitioned by `year`.
+
+| Column | Type | Description |
+|---|---|---|
+| `symbol_id` | integer | FK → dim_symbol |
+| `symbol` | string | Ticker |
+| `fiscal_year_end` | date | Fiscal year end date |
+| `period_type` | string | Always `annual` |
+| `gross_margin` | double | Gross profit / revenue |
+| `ebit_margin` | double | EBIT / revenue |
+| `net_margin` | double | Net income / revenue |
+| `roe` | double | Net income / total equity |
+| `roa` | double | Net income / total assets |
+| `current_ratio` | double | Current assets / current liabilities |
+| `debt_to_equity` | double | Total debt / total equity |
+| `debt_to_assets` | double | Total debt / total assets |
+| `interest_coverage` | double | EBIT / interest expense |
+| `fcf_margin` | double | Free cash flow / revenue |
+| `earnings_quality` | double | Operating cash flow / net income |
+| `revenue_growth_yoy` | double | YoY revenue growth rate |
+| `earnings_growth_yoy` | double | YoY net income growth rate |
+| `altman_z_score` | double | Altman Z-Score (>2.99 safe, <1.81 distressed) |
+| `piotroski_score` | integer | Piotroski F-Score (0–9; ≥7 strong, ≤2 weak) |
+| `year` | integer | Partition key |
+
+**Formulas:** All ratios computed using FinanceToolkit-verified formulas.
+See https://github.com/JerBouma/FinanceToolkit for methodology.
+
+**Piotroski F-Score signals (9 binary):**
+- Profitability (4): ROA > 0, CFO > 0, ΔROA > 0, CFO > net_income
+- Leverage (3): Δdebt < 0, Δcurrent_ratio > 0, no new dilution
+- Efficiency (2): Δgross_margin > 0, Δasset_turnover > 0
+
+**Altman Z-Score interpretation:**
+- > 2.99 — Safe zone (not distressed)
+- 1.81 – 2.99 — Grey zone
+- < 1.81 — Distress zone (elevated bankruptcy risk)
+
+**Script:** `scripts/ingest/ingest_fundamentals.py`
+**Limitations:** 4-year annual only; no point-in-time data; ETFs excluded
+
+---
+
+## dim_symbol (updated)
+
+One row per canonical ticker symbol. Now includes sector and industry.
+
+| Column | Type | Description |
+|---|---|---|
+| `symbol_id` | integer | Stable deterministic ID (SHA-256 hash of symbol) |
+| `symbol` | string | Canonical ticker (uppercase) |
+| `asset_type` | string | `stock`, `etf`, `index`, `unknown` |
+| `sector` | string | GICS sector (stocks only, e.g. Technology, Healthcare) |
+| `industry` | string | GICS industry (stocks only, e.g. Semiconductors) |
+
+**Source:** yfinance `ticker.info` for asset_type, sector, industry
+**Script:** `scripts/build/enrich_dim_symbol.py`

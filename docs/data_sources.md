@@ -216,3 +216,65 @@ cashflow = t.cashflow       # 4 years annual
 **Status:** 🗓 Planned (Phase 3)
 **Limitations:** 4-year annual only; no point-in-time; ETFs excluded; 2-6 week reporting lag
 **Upgrade path:** Financial Modeling Prep (FMP) ~$14-40/month for quarterly + 30-year history
+
+
+---
+
+## Added — Corporate Actions (yfinance)
+
+**What:** Stock splits and dividends per symbol, back to IPO.
+**Source:** yfinance `ticker.actions` (free, no API key)
+**Script:** `scripts/ingest/ingest_corporate_actions.py`
+**Output:** `fact_corporate_action`
+**Status:** ✅ 57,422 rows, 503 symbols
+
+```bash
+python scripts/ingest/ingest_corporate_actions.py
+# Or specific symbols:
+python scripts/ingest/ingest_corporate_actions.py --symbols AAPL MSFT SPY
+```
+
+---
+
+## Added — Financial Statements + Ratios (yfinance + FinanceToolkit)
+
+**What:** Annual GAAP statements and 15+ computed ratios including Piotroski F-Score and Altman Z-Score.
+**Data source:** yfinance (free) — `ticker.income_stmt`, `ticker.balance_sheet`, `ticker.cashflow`
+**Formula source:** FinanceToolkit (https://github.com/JerBouma/FinanceToolkit) — open-source, MIT
+**Script:** `scripts/ingest/ingest_fundamentals.py`
+**Output tables:** `fact_financial_statements` + `fact_fundamentals_annual`
+**Status:** ✅ 2,375 rows, 502 equity symbols
+**Limitations:** 4-year annual only; ETFs excluded; no point-in-time data
+
+```bash
+python scripts/ingest/ingest_fundamentals.py
+# Or specific symbols:
+python scripts/ingest/ingest_fundamentals.py --symbols AAPL MSFT NVDA
+```
+
+**Key ratios computed:** gross_margin, net_margin, roe, roa, current_ratio,
+debt_to_equity, fcf_margin, earnings_quality, piotroski_score, altman_z_score
+
+---
+
+## Added — CBOE VVIX and SKEW (CBOE CDN — was broken on FRED)
+
+**What:** VVIX (VIX of VIX, 2006→present) and SKEW Index (1990→present).
+**Source:** CBOE CDN (free, no auth)
+**URLs:**
+- `https://cdn.cboe.com/api/global/us_indices/daily_prices/VVIX_History.csv`
+- `https://cdn.cboe.com/api/global/us_indices/daily_prices/SKEW_History.csv`
+**Status:** ✅ 14,101 rows
+
+---
+
+## Added — dim_symbol Enrichment (yfinance)
+
+**What:** Adds `asset_type` (stock/etf/index), `sector`, `industry` to dim_symbol.
+**Source:** yfinance `ticker.info`
+**Script:** `scripts/build/enrich_dim_symbol.py`
+**Status:** ✅ 503 stocks, 27 ETFs classified; sector + industry for all stocks
+
+```bash
+python scripts/build/enrich_dim_symbol.py
+```

@@ -2,75 +2,94 @@
 
 ---
 
+## [0.3.0] — 2026-04-01 (overnight session)
+
+### Added — New canonical tables
+
+**`fact_corporate_action`** — 57,422 rows, 503 symbols
+- Dividends and stock splits back to IPO for all 531 symbols
+- Script: `scripts/ingest/ingest_corporate_actions.py`
+- Source: yfinance `ticker.actions`
+- Schema: `symbol, symbol_id, action_date, action_type (dividend|split), value, split_ratio, year`
+
+**`fact_financial_statements`** — 2,375 rows, 502 equity symbols
+- Annual GAAP income statement, balance sheet, cash flow — 4 years back
+- Script: `scripts/ingest/ingest_fundamentals.py`
+- Source: yfinance `ticker.income_stmt`, `ticker.balance_sheet`, `ticker.cashflow`
+- Key columns: revenue, gross_profit, ebit, net_income, total_assets, total_debt, total_equity,
+  current_assets, current_liabilities, operating_cash_flow, capex, free_cash_flow
+
+**`fact_fundamentals_annual`** — 2,375 rows, 502 equity symbols
+- Computed financial ratios (FinanceToolkit formulas) per symbol per fiscal year
+- Script: `scripts/ingest/ingest_fundamentals.py`
+- Key ratios: gross_margin, ebit_margin, net_margin, roe, roa, current_ratio,
+  debt_to_equity, debt_to_assets, interest_coverage, fcf_margin, earnings_quality,
+  revenue_growth_yoy, earnings_growth_yoy, **piotroski_score**, **altman_z_score**
+
+### Added — New ingest scripts
+
+- `scripts/ingest/ingest_fundamentals.py` — annual financial statements + ratio computation
+- `scripts/ingest/ingest_corporate_actions.py` — dividends + splits via yfinance
+- `scripts/build/enrich_dim_symbol.py` — adds asset_type, sector, industry to dim_symbol via yfinance
+
+### Updated — Macro series (24 total, was 21)
+
+New series added via CBOE CDN and FRED:
+- `VVIX` — CBOE VIX of VIX (4,989 rows, back to 2006) — was 404 on FRED, fixed via CBOE CDN
+- `SKEW` — CBOE SKEW Index (9,112 rows, back to 1990) — same fix
+- `M2SL` — M2 Money Supply
+- `T5YIE` — 5-Year Breakeven Inflation Rate
+- `DFII10` — 10-Year Real Rate (TIPS)
+- `USEPUINDXD` — Economic Policy Uncertainty Index
+- `DCOILWTICO` — WTI Crude Oil Price
+- `DCOILBRENTEU` — Brent Crude Oil Price
+- `KCFSI` — Kansas City Financial Stress Index
+- `STLFSI4` — St. Louis Financial Stress Index
+
+### Updated — dim_symbol
+- Now includes `sector`, `industry` columns populated via yfinance
+- `asset_type` corrected: 503 stocks, 27 ETFs, 1 unknown (was 487 unknown)
+- Script: `scripts/build/enrich_dim_symbol.py`
+
+### Updated — dim_option_contract
+- Grew from 559K → **1,451,764 contracts** as chain backfill progresses
+
+### Updated — fact_macro_series
+- 100,309 → **165,149 rows** after 10 new series added
+
+### Running overnight
+- Option chain full backfill: ~316 symbols, 2017→present (ThetaData, ~21hr total)
+- Tomorrow: ingest chain output, rebuild dbt, mart_backtest_option_panel will expand from 7 → 500+ symbols
+
+---
+
 ## [0.2.0] — 2026-04-01
 
 ### Added
-
-**Data**
-- FF5 + momentum factors ingested (26,070 rows, 1926–Jan 2026, Kenneth French library)
-- CBOE vol series added: VIX3M, GVZ (Gold VIX), OVX (Oil VIX) via FRED
-- dim_symbol expanded from 40 → 531 symbols (all equity symbols from canonical data)
-- dim_calendar corrected: 8,086 rows/2035 → 6,260 rows/2028 (covers LEAPS, not unnecessary future)
-- Option EOD ingested: 207M rows across 7 symbols (2008–2026) from ThetaData vrp_validate + chain parquets
-- VRP gap-fill completed: 513 symbols updated to Mar 30 2026 (2.24M total rows)
-
-**Models**
-- `stg_ff_factors` — new staging model for FF factors
-- `int_macro_series` updated — now merges FRED + 7 FF factors + 3 CBOE vol indices (21 series total)
-- `mart_regime_panel` expanded — 10 → 33 columns including VIX3M, vix_term_structure, gold_vix, oil_vix, all FF factors
-- `mart_optimization_inputs` updated — adds FF factors + excess_return_1d (return minus RF)
-
-**Scripts**
-- `ingest_ff_factors.py` — new, handles Kenneth French CSV format
-- `ingest_theta_option_eod.py` — rewrote: memory-safe (one file at a time), handles all ThetaData column variants
-- `ingest_theta_vrp_features.py` — rewrote: memory-safe, symbol-by-symbol with gc.collect()
-- `ingest_existing_equity.py` — rewrote: memory-safe
-- `ingest_theta_contracts.py` — fixed column mapping for chain parquet format (right→option_type, expiration→expiry)
-- `ingest_stooq_daily_bars.py` — updated: exits cleanly when Stooq blocks requests, clear error message
-
-**Documentation**
-- `STATUS.md` — new: current data state, test results, what works/doesn't/in-progress
-- `ROADMAP.md` — new: full prioritised plan for data additions, free sources, integration patterns
-- `docs/data_sources.md` — new: comprehensive source reference (current, planned, evaluated)
-- `README.md` — rewritten: status table, source table, links to all docs
-- `dbt/models/schema.yml` — added column-level not_null tests for all 15 models
-- `CONTRIBUTING.md`, `docs/architecture.md`, `docs/data_dictionary.md`, `docs/ingestion_guide.md`, `docs/query_guide.md` — all present from v0.1.0
-
-**Operations**
-- Watcher script (`/tmp/market_lake_post_gapfill.sh`) — auto-ingest + dbt rebuild on gap-fill completion
-- Manifest dedup — 15 duplicate rows cleaned to 8 canonical records
+- FF5 + momentum factors (26,070 rows, 1926–Jan 2026)
+- CBOE vol series: VIX3M, GVZ, OVX
+- dim_symbol expanded 40 → 531 symbols
+- dim_calendar corrected: 8,086/2035 → 6,260/2028
+- Option EOD: 207M rows, 7 symbols, 2008–2026
+- VRP gap-fill: 513 symbols → Mar 30 2026 (2.24M rows)
+- stg_ff_factors dbt model
+- int_macro_series: 21 series (FRED + FF + CBOE vol)
+- mart_regime_panel expanded to 33 columns
+- mart_optimization_inputs: FF factors + excess_return_1d
 
 ### Fixed
-- `parquet.py` — removed `use_legacy_dataset=True` (removed in PyArrow 23)
-- `mart_backtest_equity_panel.sql` — refactored nested window functions into 3 CTEs
-- `int_underlying_bars_daily.sql` — changed to read all sources (not just source='yahoo')
-- `stg_theta_option_eod.sql` — pass through expiry/strike/option_type columns
-- `int_option_eod.sql` — nullable-safe join; unmatched rows kept not silently dropped
-- `stg_theta_contracts.sql` / `stg_theta_option_eod.sql` — placeholder parquets prevent glob errors
-
-### Tests
-- 36 / 36 pytest unit tests passing
-- 28 / 28 dbt schema tests passing
-- 15 / 15 dbt models building clean
+- Memory-safe ingestion (one file at a time, gc.collect)
+- Option EOD column mapping (right→option_type, expiration→expiry)
+- int_option_eod nullable-safe join
+- Manifest dedup: 15 rows → 8 clean records
 
 ---
 
 ## [0.1.0] — 2026-03-31
 
 ### Added — Core foundation
-
-- Python package (`src/market_lake/`): settings, io, ids, validation
-- 7 ingest scripts: equity, VRP features, options EOD, Yahoo, Stooq, FRED, FF factors
-- 3 build scripts: bootstrap_duckdb, dim_symbol, dim_calendar
-- 14 dbt models: 6 staging, 3 intermediate, 5 marts
-- DuckDB init SQL: extensions, schemas, views
-- 4 docs: architecture, data dictionary, ingestion guide, query guide
-- dbt schema.yml with column-level tests
-- 13 pytest tests (now 36 after v0.2.0 additions)
-
-### Initial data load
-- 2,579,090 equity bar rows (531 symbols, 2005–2026, alphaquant cache)
-- 1,122,018 VRP feature rows (513 symbols, 2017–2026, ThetaData vrp_clean)
-- 85,951 macro rows (11 FRED series)
-- 8,086 calendar rows (2005–2035 weekdays)
-- 40 symbols in dim_symbol
+- Python package: settings, io, ids, validation
+- 7 ingest scripts, 3 build scripts, 14 dbt models
+- DuckDB init SQL, 4 docs
+- 36 pytest + 28 dbt tests
+- Initial load: 2.58M equity rows, 1.12M VRP rows, 86K macro rows

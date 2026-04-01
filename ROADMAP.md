@@ -10,7 +10,7 @@
 
 These are gaps in data we already have infrastructure for.
 
-### 1.1 Option Chain Full Backfill [HIGH PRIORITY]
+### 1.1 Option Chain Full Backfill 🔄 RUNNING OVERNIGHT
 **Gap:** `mart_backtest_option_panel` only covers 7 symbols (SPY/QQQ/AAPL/NVDA/META/MSFT/TSLA).
 **Source:** ThetaData (OPTION.STANDARD subscription — already active)
 **Script:** `options-research/scripts/chain_backfill.py`
@@ -56,7 +56,7 @@ cd market-lake
 2. Write `com.market-lake.daily-refresh.plist`
 3. `launchctl load ~/Library/LaunchAgents/com.market-lake.daily-refresh.plist`
 
-### 1.4 Corporate Actions Table [MEDIUM]
+### 1.4 Corporate Actions Table ✅ DONE
 **Gap:** No `fact_corporate_action` — splits and dividends not explicitly logged.
 **Source:** yfinance (free, no API key)
 **Script to write:** `scripts/ingest/ingest_corporate_actions.py`
@@ -68,7 +68,7 @@ actions = ticker.actions  # DataFrame with dividends + splits
 **Schema:** `symbol, date, action_type (split|dividend), value, split_ratio`
 **dbt model:** `stg_corporate_actions` → `fact_corporate_action`
 
-### 1.5 CBOE VVIX and SKEW Index [LOW]
+### 1.5 CBOE VVIX and SKEW Index ✅ DONE
 **Gap:** FRED 404s for `VVIXCLS` / `SKEWCLS`. CBOE publishes these directly.
 **Source:** CBOE CDN (free, no API key)
 **Fix:** Add to `ingest_fred_macro.py` or create `ingest_cboe_indices.py`:
@@ -116,7 +116,7 @@ which is the most direct measure of vol term structure and contango/backwardatio
 - dbt: New mart column `vix_futures_slope`, `vix_contango_ratio`
 **Effort:** 4-6 hours
 
-### 2.3 FRED Additional Macro Series [MEDIUM]
+### 2.3 FRED Additional Macro Series ✅ DONE (8 series added)
 **What:** Several high-value series not yet in market-lake.
 **Source:** FRED (free, no API key needed)
 
@@ -169,7 +169,7 @@ Computable from existing option EOD data — no new source needed.
 ```
 **Effort:** 2-3 hours (pure dbt, no new ingestion)
 
-### 2.7 Sector / Industry Classifications [LOW]
+### 2.7 Sector / Industry Classifications ✅ DONE
 **What:** GICS sector and industry for each symbol. Useful for sector-relative screening.
 **Source:** Multiple free options:
 - yfinance: `ticker.info['sector']`, `ticker.info['industry']`
@@ -192,7 +192,7 @@ Computable from existing option EOD data — no new source needed.
 > financially distressed companies. Combined with high IVR, this is the difference between
 > a systematic edge and selling puts into bankruptcies.
 
-### 3.1 Raw Financial Statements — yfinance [FREE, HIGH PRIORITY]
+### 3.1 Raw Financial Statements — yfinance ✅ DONE (2,375 rows, 502 symbols)
 **What:** Income statement, balance sheet, cash flow for all 531 symbols.
 **Source:** yfinance (`ticker.income_stmt`, `ticker.balance_sheet`, `ticker.cashflow`)
 **Coverage:** 4 years annual, all US-listed equities (ETFs excluded from ratio calc)
@@ -215,7 +215,7 @@ Computable from existing option EOD data — no new source needed.
 
 ---
 
-### 3.2 Compute Financial Ratios — FinanceToolkit Formulas [FREE]
+### 3.2 Compute Financial Ratios — FinanceToolkit Formulas ✅ DONE
 **What:** Implement FinanceToolkit's transparent formulas directly to compute key ratios.
 **Install:** `pip install financetoolkit` (use as formula reference, not data fetcher)
 
