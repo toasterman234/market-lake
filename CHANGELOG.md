@@ -1,3 +1,99 @@
+## [0.5.0] — 2026-04-02 (deep audit + guardrails + data integrity session)
+
+### Completed — Chain backfill and ingest
+- `fact_option_eod`: **767,396,301 rows** across 510 symbols, 2008–2026 (was 207M / 7 symbols)
+- `dim_option_contract`: **9,917,418 contracts** across 513 symbols (was 1.45M / 7 symbols)
+- `mart_backtest_option_panel`: **325,102,391 rows** — full universe (was 207M)
+
+### Added — 8 automated guardrails
+**1. Schema type enforcement** (`src/market_lake/io/parquet.py`)
+- `write_parquet()` now reads `config/schemas.yaml` and coerces types before writing
+- Catches string→DATE32, TIMESTAMP→DATE32, float→int32, string→DOUBLE at write time
+- `SchemaError` raised immediately on type mismatch — not hours later in dbt
+
+**2. Post-write dedup verification** (`src/market_lake/io/parquet.py`)
+- After every partitioned write, reads back partition and asserts 0 duplicate natural-key rows
+- `DuplicateError` raised immediately — not discovered in next audit
+
+**3. Schema registry** (`config/schemas.yaml`)
+- 13 tables defined with canonical column types and natural keys
+- Single source of truth for all parquet schemas
+
+**4. Idempotent writes** (`src/market_lake/io/parquet.py`)
+- Changed `existing_data_behavior` from `overwrite_or_ignore` → `delete_matching`
+- Re-running any ingest script now replaces the partition instead of appending files
+- This was the root cause of 4 duplication bugs found in audit
+
+**5. Row count anomaly monitor** (`scripts/ops/row_count_check.py`)
+- Runs as last step in daily pipeline
+- Alerts on >50% growth (likely duplication) or >5% shrinkage
+- Baseline in `config/row_count_baseline.json`; update with `--save` after intentional bulk loads
+
+**6. Health dashboard** (`scripts/ops/health_check.py`)
+- Green/red per table: row count, freshness, duplicate key check
+- `--json` flag for machine-readable output
+- Exits 1 if any table is unhealthy
+
+**7. Pre-commit hook** (`.git/hooks/pre-commit`)
+- Runs 30 unit tests before every commit; blocks on failure
+- `git commit --no-verify` to bypass in emergencies
+
+**8. dbt uniqueness tests** (`dbt/models/schema.yml` + `dbt/packages.yml`)
+- `dbt_utils.unique_combination_of_columns` on 7 key models
+- dbt-utils 1.3.3 installed via `dbt/packages.yml`
+- dbt test: **39/39 passing** (was 28/28 — 11 new uniqueness tests added)
+
+### Fixed — Data duplicates (all found by audit)
+
+| Table | Before | After | Root cause |
+|---|---|---|---|
+| `fact_option_feature_daily` | 2,244,891 rows (1.1M dup keys) | 1,122,873 rows, 0 dups | `overwrite_or_ignore` on re-ingest |
+| `fact_short_interest` | 15,397,564 rows (4,962 dup keys) | 15,392,602 rows, 0 dups | Same |
+| `fact_corporate_action` | 79,648 rows (27,004 dup keys) | 50,823 rows, 0 dups | Same |
+| `fact_underlying_bar_daily` year=2026 | 31,271 rows (40 dup keys, 2 sources) | 31,231 rows, 0 dups | Non-partitioned file alongside partitioned; prefer yahoo |
+
+### Fixed — VRP TIMESTAMP→DATE type
+- `fact_option_feature_daily` parquets had `date` as TIMESTAMP (from dedup rewrite)
+- Fixed: `pd.to_datetime(df["date"]).dt.date` forces Python date → PyArrow date32
+- Was causing `DATE != TIMESTAMP` conflicts in dbt marts
+
+### Fixed — `mart_regime_panel` DuckDB INTERNAL Error
+**Root cause** (isolated via bisection across 10 test cases):
+DuckDB 1.5.1 hits assertion "inequal types DATE != VARCHAR" when the full 26-column
+macro pivot CTE is joined with BOTH a TABLE (`mart_backtest_equity_panel`) AND a VIEW
+(`stg_theta_vrp_features`) in a single query. The VIEW causes lazy DATE type resolution
+that conflicts with the wide pivot under DuckDB's cross-schema optimizer.
+
+**Fix**: Split into `mart_regime_panel_base` + `mart_regime_panel`. Read VRP directly
+from canonical parquet files in the base model, bypassing the VIEW entirely.
+SQL confirmed working in Python before applying to dbt.
+
+**Result**: mart_regime_panel: 5,342 rows, **0 duplicate dates** (was 7,663 with 2,321 dups).
+Cascade: mart_screening_panel went from 1.2M duplicate (symbol,date) pairs → 0.
+
+### Fixed — `mart_fundamental_screen` truncated to 40 rows
+**Root cause**: `WHERE date = (SELECT MAX(date) FROM mart_screening_panel)` — only 40 of 531
+symbols had chain data updated to 2026-03-30 exactly; 481 symbols had data through 2026-03-27.
+
+**Fix**: `QUALIFY ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY date DESC) = 1`
+— takes each symbol's most recent row regardless of exact date.
+
+**Result**: mart_fundamental_screen: **531 rows** (was 40).
+
+### Fixed — `daily_refresh.sh`
+- Extra closing quote on `--end` date argument removed
+- Now runs all 11 pipeline steps with pass/fail tracking (no abort on individual failures)
+- Added: dbt test, pytest, row count check, health dashboard as steps 8-11
+
+### Test suite
+- pytest: **70/70** (was 60 — 10 new tests: TestVRPFeatures, TestEquityBarsPartitions)
+- dbt test: **39/39** (was 28 — 11 new dbt_utils uniqueness tests)
+
+---
+
+
+---
+
 ## [0.4.0] — 2026-04-01 (overnight + audit session)
 
 ### Added — New canonical tables

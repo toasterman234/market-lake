@@ -5,12 +5,38 @@
 > All free sources are flagged. Paid sources require existing subscriptions noted.
 
 ---
+---
+
+## Phase 0 — Data Integrity Guardrails ✅ COMPLETE (2026-04-01)
+
+Eight automated guardrails are now active on every ingest and dbt run.
+
+| # | Guardrail | Status |
+|---|---|---|
+| 1 | Schema enforcement — types coerced at write time | ✅ |
+| 2 | Post-write dedup verification — `DuplicateError` on natural-key dups | ✅ |
+| 3 | Schema registry — `config/schemas.yaml`, 13 tables | ✅ |
+| 4 | Idempotent writes — `delete_matching` prevents file accumulation | ✅ |
+| 5 | Row count anomaly monitor — >50% growth or >5% shrink alert | ✅ |
+| 6 | Health dashboard — freshness + min rows + dedup per table | ✅ |
+| 7 | Pre-commit hook — 30 unit tests run before every commit | ✅ |
+| 8 | dbt uniqueness tests — `dbt_utils.unique_combination_of_columns` on 7 models | ✅ |
+
+Recurring error patterns that guardrails now catch automatically:
+- **Idempotency failures**: old `overwrite_or_ignore` silently doubled data on re-ingest
+- **Type drift**: TIMESTAMP written where DATE expected; float where int required
+- **Silent success with wrong output**: scripts exiting 0 but writing duplicates
+- **Cross-version schema drift**: new ingest run writing different column types than old run
+
+---
+
+
 
 ## Phase 1 — Operational Completeness (Current Sprint)
 
 These are gaps in data we already have infrastructure for.
 
-### 1.1 Option Chain Full Backfill ✅ DONE (517 files, 2017→Mar 2026, all 513 symbols)
+### 1.1 Option Chain Full Backfill ✅ COMPLETE (767M rows, 510 symbols, 2008→2026-03-30)
 **Gap:** `mart_backtest_option_panel` only covers 7 symbols (SPY/QQQ/AAPL/NVDA/META/MSFT/TSLA).
 **Source:** ThetaData (OPTION.STANDARD subscription — already active)
 **Script:** `options-research/scripts/chain_backfill.py`
@@ -39,7 +65,7 @@ cd market-lake
 **Estimated time:** ~21 hours for full 513-symbol universe at 4 workers
 **Expected output:** ~500M additional rows in `fact_option_eod`
 
-### 1.2 Option Contract Dimension — All 513 Symbols ✅ DONE (pending this pipeline)
+### 1.2 Option Contract Dimension ✅ COMPLETE (9,917,418 contracts, 513 symbols)
 **Gap:** `dim_option_contract` only has 560K contracts from 5 symbols.
 **Fix:** After chain backfill completes, run:
 ```bash
