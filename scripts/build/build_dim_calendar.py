@@ -24,7 +24,7 @@ def build_calendar(start: str, end: str) -> pd.DataFrame:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--start", default="2005-01-01")
-    parser.add_argument("--end", default="2035-12-31")
+    parser.add_argument("--end", default="2028-12-31")
     args = parser.parse_args()
     settings = Settings.load()
     output_dir = settings.canonical_root / "dimensions" / "dim_calendar"
