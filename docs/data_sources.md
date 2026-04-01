@@ -179,3 +179,40 @@ Free tier too limited for systematic use.
 ### Polygon.io (Paid)
 **Why not now:** We have ThetaData for options. Polygon adds value for real-time equity bars and news.
 **Revisit:** If we need intraday data or news sentiment.
+
+---
+
+## Phase 3 — FinanceToolkit + yfinance Fundamentals
+
+### FinanceToolkit (Open-Source, MIT License)
+**Repo:** https://github.com/JerBouma/FinanceToolkit
+**What we use it for:** Formula library only — 150+ transparent financial ratio implementations.
+We do NOT use its data fetching layer.
+**Key formulas we implement:** Piotroski F-Score, Altman Z-Score, debt/equity, current ratio,
+FCF yield, FCF margin, ROE, ROA, gross margin, earnings quality, revenue growth.
+**Install:** `pip install financetoolkit`
+**License:** MIT — free for all use
+
+---
+
+### yfinance — Financial Statements (Free)
+**What:** GAAP income statement, balance sheet, cash flow for US-listed equities.
+**Access:**
+```python
+import yfinance as yf
+t = yf.Ticker("AAPL")
+income = t.income_stmt      # 4 years annual
+balance = t.balance_sheet   # 4 years annual
+cashflow = t.cashflow       # 4 years annual
+```
+**Coverage:** 4 years annual, all US-listed equities (ETFs excluded)
+**Script to write:** `scripts/ingest/ingest_fundamentals.py`
+**Tables:**
+- `fact_financial_statements` — raw GAAP line items
+- `fact_fundamentals_annual` — computed ratios (Piotroski, Altman Z, etc.)
+**dbt models:**
+- `stg_fundamentals_annual` — staging
+- `mart_fundamental_screen` — VRP + fundamental composite scanner
+**Status:** 🗓 Planned (Phase 3)
+**Limitations:** 4-year annual only; no point-in-time; ETFs excluded; 2-6 week reporting lag
+**Upgrade path:** Financial Modeling Prep (FMP) ~$14-40/month for quarterly + 30-year history

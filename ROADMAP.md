@@ -182,17 +182,144 @@ Computable from existing option EOD data — no new source needed.
 
 ---
 
-## Phase 3 — Paid / Subscription Data Expansion
+## Phase 3 — Fundamentals & Financial Analysis (FinanceToolkit)
 
-### 3.1 ThetaData — Full Historical Backfill [HIGHEST IMPACT, PAID]
+> **Decision:** Use FinanceToolkit's computation library (open-source, MIT) on top of
+> raw financial statements from yfinance (free). Do NOT use FinanceToolkit's data
+> fetching layer — yfinance is the data source, FinanceToolkit provides the formulas.
+>
+> **Why this matters for premium selling:** Piotroski Score + Altman Z-Score filter out
+> financially distressed companies. Combined with high IVR, this is the difference between
+> a systematic edge and selling puts into bankruptcies.
+
+### 3.1 Raw Financial Statements — yfinance [FREE, HIGH PRIORITY]
+**What:** Income statement, balance sheet, cash flow for all 531 symbols.
+**Source:** yfinance (`ticker.income_stmt`, `ticker.balance_sheet`, `ticker.cashflow`)
+**Coverage:** 4 years annual, all US-listed equities (ETFs excluded from ratio calc)
+**Script to write:** `scripts/ingest/ingest_fundamentals.py`
+
+**Processing:** One symbol at a time, `gc.collect()` after each, polite delay.
+**Output table:** `fact_financial_statements` — raw GAAP line items per symbol per fiscal year.
+
+**Key columns ingested:**
+
+| Column | Source Statement | Description |
+|---|---|---|
+| `symbol`, `symbol_id`, `fiscal_year_end`, `period_type` | derived | Identity |
+| `revenue`, `gross_profit`, `ebit`, `net_income`, `eps_diluted` | Income | P&L |
+| `total_assets`, `total_debt`, `total_equity`, `cash_and_equivalents` | Balance | Position |
+| `current_assets`, `current_liabilities` | Balance | Liquidity inputs |
+| `operating_cash_flow`, `capex`, `free_cash_flow` | Cash Flow | Cash generation |
+
+**Effort:** 4-6 hours
+
+---
+
+### 3.2 Compute Financial Ratios — FinanceToolkit Formulas [FREE]
+**What:** Implement FinanceToolkit's transparent formulas directly to compute key ratios.
+**Install:** `pip install financetoolkit` (use as formula reference, not data fetcher)
+
+**Key ratios computed:**
+
+| Ratio | Why it matters for premium selling |
+|---|---|
+| `piotroski_score` (0-9) | Hard quality filter — avoid selling puts on deteriorating companies |
+| `altman_z_score` | Bankruptcy predictor — never sell puts when Z < 1.81 |
+| `debt_to_equity` | Leverage filter — high debt = higher tail risk |
+| `current_ratio` | Liquidity — distressed companies fail here first |
+| `fcf_yield` | Value signal — positive FCF means self-funding |
+| `fcf_margin` | Cash generation quality |
+| `roe`, `roa` | Return quality signals |
+| `gross_margin` | Business quality proxy |
+| `earnings_quality` | CFO/net_income — catches accruals manipulation |
+| `revenue_growth_yoy` | Momentum quality |
+
+**Output table:** `fact_fundamentals_annual` — one row per symbol per fiscal year with all ratios.
+**Effort:** 2-3 hours
+
+---
+
+### 3.3 dbt Models — Fundamental Screening Layer [FREE]
+**New models:**
+
+```
+staging/
+  stg_fundamentals_annual.sql     ← reads canonical/facts/fact_fundamentals_annual
+
+marts/
+  mart_fundamental_screen.sql     ← joins fundamentals to screening panel
+```
+
+**`mart_fundamental_screen.sql` — position sizing tier logic:**
+```sql
+-- Maps to existing FULL SIZE / HALF SIZE / QUARTER SIZE / SKIP convention
+CASE
+    WHEN piotroski_score >= 7 AND altman_z_score > 2.99 THEN 'FULL SIZE'
+    WHEN piotroski_score >= 5 AND altman_z_score > 1.81 THEN 'HALF SIZE'
+    WHEN piotroski_score >= 3                            THEN 'QUARTER SIZE'
+    ELSE                                                      'SKIP'
+END AS fundamental_tier
+```
+
+**Effort:** 3-4 hours
+
+---
+
+### 3.4 Composite Scanner — VRP + Fundamentals [FREE]
+**The finished daily query:**
+
+```sql
+SELECT
+    f.symbol, f.ivr_252d, f.vrp_rank,
+    f.piotroski_score, f.altman_z_score, f.debt_to_equity,
+    f.fcf_yield, f.fundamental_tier,
+    v.iv_30d, v.put_skew_25d, v.ts_slope_30_60
+FROM mart_fundamental_screen f
+JOIN mart_screening_panel_latest v USING (symbol)
+WHERE f.ivr_252d > 0.60            -- elevated IV rank
+  AND f.altman_z_score > 2.99      -- safe zone (not distressed)
+  AND f.piotroski_score >= 5        -- financially healthy
+  AND f.debt_to_equity  < 2.0      -- manageable leverage
+ORDER BY f.ivr_252d DESC
+LIMIT 25
+```
+
+**Effort:** 1-2 hours (pure SQL)
+
+---
+
+### 3.5 Known Limitations
+
+| Limitation | Impact | Mitigation |
+|---|---|---|
+| **4-year history only (free)** | No long-term fundamental backtests | Fine for live screening |
+| **Annual data only** | Miss quarterly deterioration | Add FMP quarterly if needed (see 3.6) |
+| **ETFs have no fundamentals** | ~200 of 531 symbols excluded | Filter by `asset_type = 'stock'` |
+| **Reporting lag 2-6 weeks** | Statements not instant | Use `fiscal_year_end + 45d` as earliest valid date |
+| **No point-in-time data** | Look-ahead bias possible in backtests | Document; accept for live screening |
+| **Restatements not tracked** | Historical ratios may shift | Use current as-reported values only |
+
+### 3.6 Upgrade Path — Financial Modeling Prep (FMP)
+When you want quarterly data or 30-year history:
+- **FMP Starter ~$14/month** — quarterly statements, 5 years, 300 req/min
+- **FMP Professional ~$40/month** — 30 years, all endpoints, 750 req/min
+- Design `ingest_fundamentals.py` with FMP as a drop-in alternative to yfinance
+
+**Total Phase 3 effort: ~12-15 hours, entirely free (yfinance + FinanceToolkit open-source)**
+
+---
+
+## Phase 4 — Paid / Subscription Data Expansion
+
+### 4.1 ThetaData — Full Historical Backfill [HIGHEST IMPACT, PAID]
 Already have OPTION.STANDARD subscription. See Phase 1.1 above.
 
-### 3.2 ThetaData — ORATS IV Surface [PAID, FUTURE]
+### 4.2 ThetaData — ORATS IV Surface [PAID, FUTURE]
 **What:** More complete implied vol surface with model-calibrated greeks.
 **Cost:** Additional ThetaData subscription tier.
 **When:** After Phase 1 and 2 complete.
 
-### 3.3 Refinitiv / LSEG Eikon [PAID, FUTURE]
+### 4.3 Refinitiv / LSEG Eikon [PAID, FUTURE]
 **What:** Fundamentals, earnings revisions, analyst ratings.
 **Cost:** Enterprise subscription.
 **When:** If fundamental factor research becomes a priority.
