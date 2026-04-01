@@ -109,6 +109,7 @@ def normalize(df: pd.DataFrame) -> pd.DataFrame:
 
     keep = [
         "contract_id", "symbol_id", "underlying_symbol", "date",
+        "expiry", "strike", "option_type", "dte",
         "year", "month", "bid", "ask", "last", "mid",
         "volume", "open_interest", "iv", "delta", "gamma", "theta", "vega", "source",
     ]
