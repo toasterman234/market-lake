@@ -31,7 +31,14 @@ macro as (
         max(case when series_id = 'FF_RMW'        then value end) as ff_rmw,
         max(case when series_id = 'FF_CMA'        then value end) as ff_cma,
         max(case when series_id = 'FF_RF'         then value end) as ff_rf,
-        max(case when series_id = 'FF_MOM'        then value end) as ff_mom
+        max(case when series_id = 'FF_MOM'        then value end) as ff_mom,
+        -- New series added Mar 2026
+        max(case when series_id = 'VVIX'          then value end) as vvix,
+        max(case when series_id = 'SKEW'          then value end) as skew_index,
+        max(case when series_id = 'M2SL'          then value end) as m2_money_supply,
+        max(case when series_id = 'DCOILWTICO'    then value end) as wti_oil,
+        max(case when series_id = 'USEPUINDXD'    then value end) as epu_index,
+        max(case when series_id = 'KCFSI'         then value end) as kc_stress_index
     from {{ ref('int_macro_series') }}
     group by date
 ),
@@ -85,6 +92,12 @@ joined as (
         m.ff_cma,
         m.ff_rf,
         m.ff_mom,
+        m.vvix,
+        m.skew_index,
+        m.m2_money_supply,
+        m.wti_oil,
+        m.epu_index,
+        m.kc_stress_index,
 
         -- Regime labels
         case

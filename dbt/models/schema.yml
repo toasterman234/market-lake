@@ -46,13 +46,13 @@ models:
         description: Observed value (may be null for unreleased vintages)
 
   - name: stg_theta_contracts
-    description: ThetaData option contract dimension (empty until contracts are ingested)
+    description: ThetaData option contract dimension — 1.45M contracts. Includes expiry, strike, option_type, multiplier.
     columns:
       - name: contract_id
         description: Stable contract identifier — UNDERLYING|EXPIRY|STRIKE|TYPE
 
   - name: stg_theta_option_eod
-    description: ThetaData option EOD quotes and Greeks (empty until EOD data is ingested)
+    description: ThetaData option EOD — 207M rows across 7 symbols (2008–2026). Includes bid/ask/IV/Greeks/DTE.
 
   - name: int_underlying_bars_daily
     description: >

@@ -6,7 +6,12 @@
 select
     contract_id,
     try_cast(symbol_id as bigint)               as symbol_id,
-    upper(trim(underlying_symbol))              as underlying_symbol,
+    -- 50.6M rows from thetadata_vrp_validate source have null underlying_symbol.
+    -- contract_id format is SYMBOL|EXPIRY|STRIKE|TYPE — parse symbol as fallback.
+    coalesce(
+        nullif(upper(trim(underlying_symbol)), 'NAN'),
+        split_part(contract_id, '|', 1)
+    )                                                   as underlying_symbol,
     try_cast(date as date)                      as date,
 
     -- expiry/strike/option_type may come directly from chain parquets

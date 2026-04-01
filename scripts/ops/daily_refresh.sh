@@ -31,14 +31,15 @@ log "Ingesting VRP..."
 cd "$MARKET_LAKE"
 "$PYTHON" scripts/ingest/ingest_theta_vrp_features.py \
     --input-dir "$OPTIONS_RESEARCH/data/vrp_clean" \
-    --output-dir "canonical/features/fact_option_feature_daily" 2>&1 | tee -a "$LOG"
+    --output-dir "$MARKET_LAKE/canonical/features/fact_option_feature_daily" 2>&1 | tee -a "$LOG"
 
 # 4. Equity bars top-up (core 38 symbols)
 log "Equity bars top-up..."
 "$PYTHON" scripts/ingest/ingest_yahoo_daily_bars.py \
     --symbols SPY QQQ IWM TLT GLD DIA XLK XLF XLV XLE XLI XLP XLU XLY XLB XLRE \
               AAPL MSFT NVDA AMZN GOOGL META TSLA JPM BAC GS COST LLY AVGO AMD NFLX \
-    --start "$(date -v-5d +%Y-%m-%d)" --end "$(date +%Y-%m-%d)" 2>&1 | tee -a "$LOG"
+    --start "$(date -v-5d +%Y-%m-%d 2>/dev/null || date -d '5 days ago' +%Y-%m-%d)" \
+    --end "$(date +%Y-%m-%d)"" 2>&1 | tee -a "$LOG"
 
 # 5. FRED macro (picks up latest daily series)
 log "FRED macro refresh..."
